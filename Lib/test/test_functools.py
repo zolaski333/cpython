@@ -3651,9 +3651,9 @@ class TestSingleDispatch(unittest.TestCase):
         self.assertEqual(str(Signature.from_callable(A.func)),
                          '(self, item, arg: int) -> str')
         self.assertEqual(str(Signature.from_callable(A().func)),
-                         '(self, item, arg: int) -> str')
+                         '(item, arg: int) -> str')
         self.assertEqual(str(Signature.from_callable(A.cls_func)),
-                         '(cls, item, arg: int) -> str')
+                         '(item, arg: int) -> str')
         self.assertEqual(str(Signature.from_callable(A.static_func)),
                          '(item, arg: int) -> str')
 
@@ -3687,6 +3687,48 @@ class TestSingleDispatch(unittest.TestCase):
         self.assertEqual(a.u(2.5), ('general', 2.5))
         self.assertEqual(a.v(0), ('special', 0))
         self.assertEqual(a.v(2.5), ('general', 2.5))
+
+        for method in (A.t, a.t, A.v, a.v):
+            with self.subTest(method=method):
+                self.assertEqual(str(Signature.from_callable(method)), '(arg)')
+
+    def test_bound_method_signatures(self):
+        class A:
+            @functools.singledispatchmethod
+            def method(self, arg, extra=42):
+                return self, arg, extra
+
+            @functools.singledispatchmethod
+            @classmethod
+            def class_method(cls, arg, extra=42):
+                return cls, arg, extra
+
+            @functools.singledispatchmethod
+            @staticmethod
+            def static_method(arg, extra=42):
+                return arg, extra
+
+        a = A()
+        cases = (
+            (a.method, (a, 1, 42)),
+            (A.class_method, (A, 1, 42)),
+            (a.class_method, (A, 1, 42)),
+            (A.static_method, (1, 42)),
+            (a.static_method, (1, 42)),
+        )
+        for method, expected in cases:
+            with self.subTest(method=method):
+                signature = Signature.from_callable(method)
+                self.assertEqual(str(signature), '(arg, extra=42)')
+                bound = signature.bind(1)
+                bound.apply_defaults()
+                self.assertEqual(method(*bound.args, **bound.kwargs), expected)
+
+        signature = Signature.from_callable(A.method)
+        self.assertEqual(str(signature), '(self, arg, extra=42)')
+        bound = signature.bind(a, 1)
+        bound.apply_defaults()
+        self.assertEqual(A.method(*bound.args, **bound.kwargs), (a, 1, 42))
 
 
 class CachedCostItem:

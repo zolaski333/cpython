@@ -1126,7 +1126,10 @@ class _singledispatchmethod_get:
 
     @property
     def __wrapped__(self):
-        return self._unbound.func
+        func = self._unbound.func
+        if hasattr(func, "__get__"):
+            return func.__get__(self._obj, self._cls)
+        return func
 
     @property
     def register(self):

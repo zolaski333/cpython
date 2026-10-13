@@ -1,0 +1,2 @@
+Fix :func:`inspect.signature` for bound :class:`functools.singledispatchmethod`
+objects to omit the already bound ``self`` or ``cls`` parameter.
